@@ -1,0 +1,457 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Beer League Stamina Diagnostic | AMBTN Athlete</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --bg: #060c14; --bg2: #0a1420; --bg3: #0d1a28;
+    --ice-dim: #5ba3c9; --ice-border: rgba(168,216,240,0.18);
+    --accent: #00c8ff; --red: #ff3b3b; --yellow: #ffd166; --green: #06d6a0;
+    --text: #e8f4fd; --text-dim: #7a9cb5;
+  }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
+  body { background: var(--bg); color: var(--text); font-family: 'DM Sans', sans-serif; min-height: 100vh; overflow-x: hidden; }
+  body::before {
+    content: ''; position: fixed; inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
+    pointer-events: none; z-index: 0;
+  }
+  .rink-lines { position: fixed; inset: 0; pointer-events: none; z-index: 0; overflow: hidden; }
+  .rink-lines::before {
+    content: ''; position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%);
+    width: 600px; height: 600px; border-radius: 50%; border: 1px solid rgba(168,216,240,0.04);
+    box-shadow: 0 0 0 80px rgba(168,216,240,0.02), 0 0 0 160px rgba(168,216,240,0.01);
+  }
+  .rink-lines::after {
+    content: ''; position: absolute; top: 0; left: 50%; transform: translateX(-50%);
+    width: 1px; height: 100%;
+    background: linear-gradient(to bottom, transparent, rgba(168,216,240,0.04) 30%, rgba(168,216,240,0.06) 50%, rgba(168,216,240,0.04) 70%, transparent);
+  }
+  .wrapper { position: relative; z-index: 1; max-width: 720px; margin: 0 auto; padding: 0 24px 80px; }
+  .site-header { padding: 36px 0 0; text-align: center; animation: fadeDown 0.6s ease both; }
+  .brand-tag {
+    display: inline-block; font-size: 11px; font-weight: 600; letter-spacing: 0.22em; text-transform: uppercase;
+    color: var(--ice-dim); border: 1px solid var(--ice-border); padding: 5px 14px; border-radius: 2px; margin-bottom: 20px;
+  }
+  .hero-title { font-family: 'Bebas Neue', sans-serif; font-size: clamp(52px,10vw,82px); line-height: 0.92; letter-spacing: 0.03em; margin-bottom: 6px; }
+  .hero-title span { color: var(--accent); display: block; }
+  .hero-sub { font-size: 16px; color: var(--text-dim); max-width: 480px; margin: 16px auto 0; line-height: 1.5; }
+  .hero-sub strong { color: var(--text); }
+  .intro-card {
+    margin: 36px 0 48px; background: var(--bg2); border: 1px solid var(--ice-border); border-radius: 4px;
+    padding: 20px 24px; display: flex; align-items: flex-start; gap: 14px; animation: fadeUp 0.7s 0.2s ease both;
+  }
+  .intro-icon { font-size: 22px; flex-shrink: 0; margin-top: 2px; }
+  .intro-card p { font-size: 14px; color: var(--text-dim); line-height: 1.6; }
+  .intro-card p strong { color: var(--accent); }
+  .progress-wrap { margin-bottom: 36px; animation: fadeUp 0.7s 0.3s ease both; }
+  .progress-label { display: flex; justify-content: space-between; font-size: 11px; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; color: var(--text-dim); margin-bottom: 8px; }
+  .progress-track { height: 3px; background: rgba(255,255,255,0.06); border-radius: 2px; overflow: hidden; }
+  .progress-fill { height: 100%; background: linear-gradient(90deg, var(--ice-dim), var(--accent)); border-radius: 2px; transition: width 0.5s cubic-bezier(0.4,0,0.2,1); width: 0%; }
+  .section { margin-bottom: 40px; opacity: 0; transform: translateY(24px); transition: opacity 0.5s ease, transform 0.5s ease; }
+  .section.visible { opacity: 1; transform: translateY(0); }
+  .section-header { display: flex; align-items: center; gap: 14px; margin-bottom: 20px; padding-bottom: 14px; border-bottom: 1px solid var(--ice-border); }
+  .section-num { font-family: 'Bebas Neue', sans-serif; font-size: 42px; color: var(--ice-border); line-height: 1; flex-shrink: 0; }
+  .section-meta { flex: 1; }
+  .section-label { font-size: 10px; font-weight: 700; letter-spacing: 0.2em; text-transform: uppercase; color: var(--text-dim); margin-bottom: 3px; }
+  .section-title { font-family: 'Bebas Neue', sans-serif; font-size: 26px; letter-spacing: 0.05em; line-height: 1; }
+  .section-icon { font-size: 28px; }
+  .question { margin-bottom: 12px; background: var(--bg3); border: 1px solid rgba(255,255,255,0.05); border-radius: 4px; padding: 14px 16px; transition: border-color 0.2s; }
+  .question:hover { border-color: var(--ice-border); }
+  .q-text { font-size: 14px; font-weight: 500; color: var(--text); margin-bottom: 12px; line-height: 1.4; }
+  .q-options { display: flex; gap: 8px; }
+  .q-btn { flex: 1; padding: 8px 4px; border-radius: 3px; border: 1px solid rgba(255,255,255,0.08); background: transparent; color: var(--text-dim); font-family: 'DM Sans', sans-serif; font-size: 12px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; cursor: pointer; transition: all 0.15s ease; }
+  .q-btn:hover { background: rgba(255,255,255,0.04); color: var(--text); }
+  .q-btn.selected-yes { background: rgba(0,200,255,0.14); border-color: var(--accent); color: var(--accent); }
+  .q-btn.selected-sometimes { background: rgba(255,209,102,0.12); border-color: var(--yellow); color: var(--yellow); }
+  .q-btn.selected-no { background: rgba(61,90,114,0.25); border-color: rgba(61,90,114,0.6); color: #4e7a99; }
+  .submit-wrap { text-align: center; margin-top: 40px; animation: fadeUp 0.6s 0.4s ease both; }
+  .submit-btn { background: var(--accent); color: var(--bg); font-family: 'DM Sans', sans-serif; font-size: 15px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; padding: 18px 52px; border: none; border-radius: 3px; cursor: pointer; transition: all 0.2s ease; opacity: 0.4; pointer-events: none; }
+  .submit-btn.active { opacity: 1; pointer-events: all; }
+  .submit-btn.active:hover { background: #fff; transform: translateY(-2px); box-shadow: 0 12px 32px rgba(0,200,255,0.3); }
+  .submit-hint { font-size: 12px; color: var(--text-dim); margin-top: 10px; }
+  #results { display: none; animation: fadeUp 0.6s ease both; }
+  .result-header { text-align: center; margin-bottom: 36px; }
+  .result-header h2 { font-family: 'Bebas Neue', sans-serif; font-size: clamp(38px,8vw,60px); letter-spacing: 0.04em; line-height: 1; margin-bottom: 8px; }
+  .result-header p { color: var(--text-dim); font-size: 14px; max-width: 420px; margin: 0 auto; line-height: 1.5; }
+  .diagnosis-card { background: var(--bg2); border-radius: 6px; overflow: hidden; margin-bottom: 20px; border: 1px solid var(--ice-border); }
+  .diagnosis-card.priority-1 { border-color: rgba(255,59,59,0.4); }
+  .diagnosis-card.priority-2 { border-color: rgba(255,209,102,0.3); }
+  .diagnosis-card.priority-3 { border-color: rgba(168,216,240,0.2); }
+  .diagnosis-top { padding: 18px 22px; display: flex; align-items: center; gap: 14px; border-bottom: 1px solid rgba(255,255,255,0.05); }
+  .diag-icon { font-size: 26px; }
+  .diag-meta { flex: 1; }
+  .diag-label { font-size: 10px; font-weight: 700; letter-spacing: 0.18em; text-transform: uppercase; color: var(--text-dim); margin-bottom: 3px; }
+  .diag-label.red { color: var(--red); } .diag-label.yellow { color: var(--yellow); } .diag-label.blue { color: var(--ice-dim); }
+  .diag-title { font-family: 'Bebas Neue', sans-serif; font-size: 24px; letter-spacing: 0.05em; }
+  .diag-score { font-family: 'Bebas Neue', sans-serif; font-size: 36px; line-height: 1; }
+  .diag-score .score-denom { font-size: 18px; color: var(--text-dim); }
+  .score-bar-wrap { padding: 0 22px; margin: 14px 0; }
+  .score-bar-track { height: 5px; background: rgba(255,255,255,0.05); border-radius: 3px; overflow: hidden; }
+  .score-bar-fill { height: 100%; border-radius: 3px; transition: width 1s 0.3s cubic-bezier(0.4,0,0.2,1); width: 0%; }
+  .fill-red { background: linear-gradient(90deg,#c0392b,var(--red)); }
+  .fill-yellow { background: linear-gradient(90deg,#e6a817,var(--yellow)); }
+  .fill-blue { background: linear-gradient(90deg,var(--ice-dim),var(--accent)); }
+  .fill-green { background: linear-gradient(90deg,#04a87c,var(--green)); }
+  .diagnosis-body { padding: 16px 22px 20px; }
+  .athlete-voice { font-size: 15px; font-style: italic; color: var(--text-dim); border-left: 2px solid var(--ice-border); padding-left: 14px; margin-bottom: 14px; line-height: 1.5; }
+  .diag-verdict { font-size: 13px; color: var(--text); line-height: 1.6; }
+  .diag-verdict strong { color: var(--accent); }
+  .priority-plan { background: var(--bg2); border: 1px solid var(--ice-border); border-radius: 6px; padding: 22px 24px; margin-bottom: 20px; }
+  .plan-title { font-family: 'Bebas Neue', sans-serif; font-size: 22px; letter-spacing: 0.05em; margin-bottom: 16px; color: var(--accent); }
+  .plan-steps { list-style: none; }
+  .plan-steps li { display: flex; align-items: flex-start; gap: 12px; padding: 10px 0; border-bottom: 1px solid rgba(255,255,255,0.04); font-size: 14px; color: var(--text-dim); line-height: 1.5; }
+  .plan-steps li:last-child { border-bottom: none; }
+  .step-num { width: 22px; height: 22px; background: rgba(0,200,255,0.1); border: 1px solid rgba(0,200,255,0.3); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; color: var(--accent); flex-shrink: 0; margin-top: 1px; }
+  .plan-steps li strong { color: var(--text); }
+  .habits-card { background: rgba(255,209,102,0.06); border: 1px solid rgba(255,209,102,0.3); border-radius: 6px; padding: 18px 22px; margin-bottom: 20px; display: none; }
+  .habits-card.show { display: block; }
+  .habits-card h3 { font-family: 'Bebas Neue', sans-serif; font-size: 20px; color: var(--yellow); letter-spacing: 0.05em; margin-bottom: 8px; }
+  .habits-card p { font-size: 13px; color: var(--text-dim); line-height: 1.6; }
+  .habits-card p strong { color: var(--yellow); }
+  .cta-block { text-align: center; background: linear-gradient(135deg,rgba(0,200,255,0.08),rgba(168,216,240,0.04)); border: 1px solid rgba(0,200,255,0.2); border-radius: 6px; padding: 36px 28px; margin-top: 36px; position: relative; overflow: hidden; }
+  .cta-block::before { content: ''; position: absolute; top: -60px; right: -60px; width: 200px; height: 200px; border-radius: 50%; background: radial-gradient(circle,rgba(0,200,255,0.08),transparent 70%); pointer-events: none; }
+  .cta-eyebrow { font-size: 11px; font-weight: 700; letter-spacing: 0.2em; text-transform: uppercase; color: var(--accent); margin-bottom: 10px; }
+  .cta-headline { font-family: 'Bebas Neue', sans-serif; font-size: clamp(30px,6vw,44px); letter-spacing: 0.04em; line-height: 1.05; margin-bottom: 12px; }
+  .cta-body { font-size: 14px; color: var(--text-dim); max-width: 400px; margin: 0 auto 24px; line-height: 1.6; }
+  .cta-btn { display: inline-block; background: var(--accent); color: var(--bg); font-family: 'DM Sans', sans-serif; font-size: 14px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; text-decoration: none; padding: 16px 36px; border-radius: 3px; border: none; cursor: pointer; transition: all 0.2s ease; }
+  .cta-btn:hover { background: #fff; transform: translateY(-2px); box-shadow: 0 12px 32px rgba(0,200,255,0.3); }
+  .cta-note { font-size: 12px; color: var(--text-dim); margin-top: 12px; }
+  .retake-btn { display: inline-block; margin-top: 20px; font-size: 13px; color: var(--text-dim); cursor: pointer; border: none; background: none; font-family: 'DM Sans', sans-serif; text-decoration: underline; text-underline-offset: 3px; transition: color 0.2s; }
+  .retake-btn:hover { color: var(--text); }
+  @keyframes fadeDown { from { opacity:0; transform:translateY(-16px); } to { opacity:1; transform:translateY(0); } }
+  @keyframes fadeUp { from { opacity:0; transform:translateY(16px); } to { opacity:1; transform:translateY(0); } }
+  @media (max-width:480px) { .wrapper { padding: 0 16px 60px; } .q-options { gap: 6px; } .q-btn { font-size: 11px; padding: 7px 3px; } }
+</style>
+</head>
+<body>
+<div class="rink-lines"></div>
+<div class="wrapper">
+
+  <header class="site-header">
+    <div class="brand-tag">AMBTN Athlete</div>
+    <h1 class="hero-title">Beer League<br/><span>Stamina Diagnostic</span></h1>
+    <p class="hero-sub">Answer <strong>18 questions</strong>. Find out exactly <strong>why your dead by the 3rd period</strong> — and what to actually fix.</p>
+  </header>
+
+  <div class="intro-card">
+    <div class="intro-icon">🏒</div>
+    <p>This maps the <strong>3 energy systems</strong> beer league need to train — alactic, lactic, and aerobic — so you stop guessing and start training the right thing. Takes 2 minutes.</p>
+  </div>
+
+  <div id="quiz">
+    <div class="progress-wrap">
+      <div class="progress-label"><span>Progress</span><span id="progress-count">0 / 18 answered</span></div>
+      <div class="progress-track"><div class="progress-fill" id="progress-fill"></div></div>
+    </div>
+
+    <div class="section">
+      <div class="section-header"><div class="section-num">01</div><div class="section-meta"><div class="section-label">Alactic System</div><div class="section-title">Explosiveness</div></div><div class="section-icon">⚡</div></div>
+      <div class="question" data-section="alactic"><div class="q-text">Do you feel slow in your first few strides?</div><div class="q-options"><button class="q-btn" onclick="answer(this,'yes')">Yes</button><button class="q-btn" onclick="answer(this,'sometimes')">Sometimes</button><button class="q-btn" onclick="answer(this,'no')">No</button></div></div>
+      <div class="question" data-section="alactic"><div class="q-text">Do guys beat you to loose pucks even when you react first?</div><div class="q-options"><button class="q-btn" onclick="answer(this,'yes')">Yes</button><button class="q-btn" onclick="answer(this,'sometimes')">Sometimes</button><button class="q-btn" onclick="answer(this,'no')">No</button></div></div>
+      <div class="question" data-section="alactic"><div class="q-text">Do you feel like you can't "separate" from opponents?</div><div class="q-options"><button class="q-btn" onclick="answer(this,'yes')">Yes</button><button class="q-btn" onclick="answer(this,'sometimes')">Sometimes</button><button class="q-btn" onclick="answer(this,'no')">No</button></div></div>
+      <div class="question" data-section="alactic"><div class="q-text">Does your speed feel capped even when you're fresh?</div><div class="q-options"><button class="q-btn" onclick="answer(this,'yes')">Yes</button><button class="q-btn" onclick="answer(this,'sometimes')">Sometimes</button><button class="q-btn" onclick="answer(this,'no')">No</button></div></div>
+      <div class="question" data-section="alactic"><div class="q-text">Do you feel heavy or sluggish early in the game?</div><div class="q-options"><button class="q-btn" onclick="answer(this,'yes')">Yes</button><button class="q-btn" onclick="answer(this,'sometimes')">Sometimes</button><button class="q-btn" onclick="answer(this,'no')">No</button></div></div>
+    </div>
+
+    <div class="section">
+      <div class="section-header"><div class="section-num">02</div><div class="section-meta"><div class="section-label">Lactic System</div><div class="section-title">Leg Burn / Shift Fatigue</div></div><div class="section-icon">🔥</div></div>
+      <div class="question" data-section="lactic"><div class="q-text">Do your legs start burning halfway through a shift?</div><div class="q-options"><button class="q-btn" onclick="answer(this,'yes')">Yes</button><button class="q-btn" onclick="answer(this,'sometimes')">Sometimes</button><button class="q-btn" onclick="answer(this,'no')">No</button></div></div>
+      <div class="question" data-section="lactic"><div class="q-text">Do you feel strong at the start of a shift, then suddenly drop off?</div><div class="q-options"><button class="q-btn" onclick="answer(this,'yes')">Yes</button><button class="q-btn" onclick="answer(this,'sometimes')">Sometimes</button><button class="q-btn" onclick="answer(this,'no')">No</button></div></div>
+      <div class="question" data-section="lactic"><div class="q-text">Do you struggle to battle along the boards after 20–30 seconds?</div><div class="q-options"><button class="q-btn" onclick="answer(this,'yes')">Yes</button><button class="q-btn" onclick="answer(this,'sometimes')">Sometimes</button><button class="q-btn" onclick="answer(this,'no')">No</button></div></div>
+      <div class="question" data-section="lactic"><div class="q-text">Do your legs feel like they're full of cement during long shifts?</div><div class="q-options"><button class="q-btn" onclick="answer(this,'yes')">Yes</button><button class="q-btn" onclick="answer(this,'sometimes')">Sometimes</button><button class="q-btn" onclick="answer(this,'no')">No</button></div></div>
+      <div class="question" data-section="lactic"><div class="q-text">Do you avoid long shifts because you know you'll gas out?</div><div class="q-options"><button class="q-btn" onclick="answer(this,'yes')">Yes</button><button class="q-btn" onclick="answer(this,'sometimes')">Sometimes</button><button class="q-btn" onclick="answer(this,'no')">No</button></div></div>
+    </div>
+
+    <div class="section">
+      <div class="section-header"><div class="section-num">03</div><div class="section-meta"><div class="section-label">Aerobic System</div><div class="section-title">Gas / Recovery</div></div><div class="section-icon">🧠</div></div>
+      <div class="question" data-section="aerobic"><div class="q-text">Do you feel out of breath after just 1–2 shifts?</div><div class="q-options"><button class="q-btn" onclick="answer(this,'yes')">Yes</button><button class="q-btn" onclick="answer(this,'sometimes')">Sometimes</button><button class="q-btn" onclick="answer(this,'no')">No</button></div></div>
+      <div class="question" data-section="aerobic"><div class="q-text">Do you need a long time on the bench to feel normal again?</div><div class="q-options"><button class="q-btn" onclick="answer(this,'yes')">Yes</button><button class="q-btn" onclick="answer(this,'sometimes')">Sometimes</button><button class="q-btn" onclick="answer(this,'no')">No</button></div></div>
+      <div class="question" data-section="aerobic"><div class="q-text">Does each shift feel worse than the last as the game goes on?</div><div class="q-options"><button class="q-btn" onclick="answer(this,'yes')">Yes</button><button class="q-btn" onclick="answer(this,'sometimes')">Sometimes</button><button class="q-btn" onclick="answer(this,'no')">No</button></div></div>
+      <div class="question" data-section="aerobic"><div class="q-text">Do you feel tired overall — not just leg burn, but full-body exhausted?</div><div class="q-options"><button class="q-btn" onclick="answer(this,'yes')">Yes</button><button class="q-btn" onclick="answer(this,'sometimes')">Sometimes</button><button class="q-btn" onclick="answer(this,'no')">No</button></div></div>
+    </div>
+
+    <div class="section">
+      <div class="section-header"><div class="section-num">04</div><div class="section-meta"><div class="section-label">Reality Check</div><div class="section-title">Habits & Pacing</div></div><div class="section-icon">🏒</div></div>
+      <div class="question" data-section="habits"><div class="q-text">Do you only feel bad in the first game back after time off?</div><div class="q-options"><button class="q-btn" onclick="answer(this,'yes')">Yes</button><button class="q-btn" onclick="answer(this,'sometimes')">Sometimes</button><button class="q-btn" onclick="answer(this,'no')">No</button></div></div>
+      <div class="question" data-section="habits"><div class="q-text">Do you play longer shifts than everyone else?</div><div class="q-options"><button class="q-btn" onclick="answer(this,'yes')">Yes</button><button class="q-btn" onclick="answer(this,'sometimes')">Sometimes</button><button class="q-btn" onclick="answer(this,'no')">No</button></div></div>
+      <div class="question" data-section="habits"><div class="q-text">Are you barely moving on the bench between shifts?</div><div class="q-options"><button class="q-btn" onclick="answer(this,'yes')">Yes</button><button class="q-btn" onclick="answer(this,'sometimes')">Sometimes</button><button class="q-btn" onclick="answer(this,'no')">No</button></div></div>
+      <div class="question" data-section="habits"><div class="q-text">Do you train conditioning 0–1x per week?</div><div class="q-options"><button class="q-btn" onclick="answer(this,'yes')">Yes</button><button class="q-btn" onclick="answer(this,'sometimes')">Sometimes</button><button class="q-btn" onclick="answer(this,'no')">No</button></div></div>
+    </div>
+
+    <div class="submit-wrap">
+      <button class="submit-btn" id="submit-btn" onclick="showResults()">See My Results →</button>
+      <p class="submit-hint" id="submit-hint">Answer all 18 questions to unlock your results</p>
+    </div>
+  </div>
+
+  <div id="results">
+    <div class="result-header">
+      <h2 id="result-headline">Your Stamina Profile</h2>
+      <p id="result-subline">Here's what's actually killing your game — and the order to fix it.</p>
+    </div>
+    <div class="habits-card" id="habits-flag">
+      <h3>⚠️ Before We Get Into Training...</h3>
+      <p>Your answers suggest this might not be a physiology problem. <strong>Habits + pacing are limiting you.</strong> Playing long shifts, skipping conditioning, and going dead on the bench will kill your stamina regardless of how fit you are. Fix those first.</p>
+    </div>
+    <div id="diagnosis-cards"></div>
+    <div id="priority-plan"></div>
+    <div class="cta-block">
+      <div class="cta-eyebrow">Next Step</div>
+      <h2 class="cta-headline">Let's Build a<br/>Fix Around This</h2>
+      <p class="cta-body">This told you where the gap is. It can't tell you how deep it goes or how fast we close it — that depends on your schedule, your training history, and what's actually happening in games. That's what the application is for. Fill it out and I'll reach out if I can help.</p>
+      <a href="https://ambtnathlete.com/start?utm_source=nutritiondiagnostic&utm_content=diagnostic" class="cta-btn" target="_blank">Apply Here</a>
+      
+    </div>
+    <div style="text-align:center;">
+      <button class="retake-btn" onclick="retake()">← Retake the Diagnostic</button>
+    </div>
+  </div>
+
+</div>
+<script>
+  const totalQ = 18;
+  let answered = 0;
+  const scores = { alactic:0, lactic:0, aerobic:0, habits:0 };
+  const sectionMax = { alactic:5, lactic:5, aerobic:4, habits:4 };
+
+  function revealSections() {
+    document.querySelectorAll('.section').forEach((el,i) => setTimeout(() => el.classList.add('visible'), i*120));
+  }
+  requestAnimationFrame(() => setTimeout(revealSections, 400));
+
+  function answer(btn, val) {
+    const q = btn.closest('.question');
+    const sec = q.dataset.section;
+    const btns = q.querySelectorAll('.q-btn');
+    const prev = getPrevVal(btns);
+    btns.forEach(b => b.classList.remove('selected-yes','selected-sometimes','selected-no'));
+    btn.classList.add('selected-'+val);
+    if (prev === null) answered++;
+    if (prev !== null) scores[sec] -= scoreVal(prev);
+    scores[sec] += scoreVal(val);
+    updateProgress();
+  }
+
+  function getPrevVal(btns) {
+    for (const b of btns) {
+      if (b.classList.contains('selected-yes')) return 'yes';
+      if (b.classList.contains('selected-sometimes')) return 'sometimes';
+      if (b.classList.contains('selected-no')) return 'no';
+    }
+    return null;
+  }
+
+  function scoreVal(v) { return v==='yes'?1:v==='sometimes'?0.5:0; }
+
+  function updateProgress() {
+    const pct = Math.round((answered/totalQ)*100);
+    document.getElementById('progress-fill').style.width = pct+'%';
+    document.getElementById('progress-count').textContent = answered+' / 18 answered';
+    if (answered === totalQ) {
+      document.getElementById('submit-btn').classList.add('active');
+      document.getElementById('submit-hint').textContent = "You're good to go →";
+    }
+  }
+
+  function showResults() {
+    if (answered < totalQ) return;
+    document.getElementById('quiz').style.display = 'none';
+    document.getElementById('results').style.display = 'block';
+    window.scrollTo({top:0, behavior:'smooth'});
+    buildResults();
+  }
+
+  function buildResults() {
+    const sev = {};
+    Object.keys(sectionMax).forEach(k => {
+      const p = scores[k]/sectionMax[k];
+      sev[k] = p>=0.7?'major':p>=0.4?'moderate':'minor';
+    });
+
+    if (sev.habits==='major') document.getElementById('habits-flag').classList.add('show');
+
+    const systems = [
+      {key:'aerobic', score:scores.aerobic, max:sectionMax.aerobic, sev:sev.aerobic},
+      {key:'lactic',  score:scores.lactic,  max:sectionMax.lactic,  sev:sev.lactic},
+      {key:'alactic', score:scores.alactic, max:sectionMax.alactic, sev:sev.alactic},
+    ].sort((a,b)=>(b.score/b.max)-(a.score/a.max));
+
+    const defs = {
+      aerobic: { icon:'🧠', title:'Aerobic System', labelClass:'blue', fillClass:'fill-blue',
+        voice:'"I\'m just gassed the whole game."',
+        verdict: s => s==='minor' ? 'Your aerobic base looks solid. Recovery between shifts isn\'t the main issue here.'
+          : 'Your aerobic system is a <strong>major limiter</strong>. This is why each shift feels worse than the last and bench time never feels like enough. Fix this first — it\'s the foundation everything else sits on.' },
+      lactic: { icon:'🔥', title:'Lactic System', labelClass:'yellow', fillClass:'fill-yellow',
+        voice:'"My legs just die when it gets intense."',
+        verdict: s => s==='minor' ? 'Your lactic tolerance looks okay. Shift drop-off isn\'t a primary issue right now.'
+          : 'Your lactic system is taking you out. This is the <strong>mid-shift wall</strong> — strong start, dead finish. Train your body to handle and clear lactate faster. Fix aerobic base first if it scored high, then attack this.' },
+      alactic: { icon:'⚡', title:'Alactic System', labelClass:'red', fillClass:'fill-red',
+        voice:'"I just don\'t have that extra gear."',
+        verdict: s => s==='minor' ? 'Your explosiveness looks fine relative to the other systems. Not a primary bottleneck right now.'
+          : 'Most guys think this is their problem. Here\'s the truth: <strong>if you\'re tired, you can\'t express speed anyway.</strong> Your alactic system may need work — but it\'s the last piece to train, not the first.' },
+    };
+
+    const container = document.getElementById('diagnosis-cards');
+    container.innerHTML = '';
+    systems.forEach((sys,idx) => {
+      const d = defs[sys.key];
+      const pct = Math.min(Math.round((sys.score/sys.max)*100),100);
+      const pc = idx===0&&sys.sev!=='minor'?'priority-1':idx===1&&sys.sev!=='minor'?'priority-2':'priority-3';
+      const lbl = idx===0&&sys.sev!=='minor' ? `<div class="diag-label ${d.labelClass}">🚨 Primary Limiter</div>`
+                : idx===1&&sys.sev!=='minor' ? `<div class="diag-label ${d.labelClass}">⚠️ Secondary Issue</div>`
+                : `<div class="diag-label">${sys.sev==='minor'?'✅ Looking Okay':'Also Needs Work'}</div>`;
+      const sc = sys.sev==='minor'?'var(--green)':idx===0?'var(--red)':idx===1?'var(--yellow)':'var(--ice-dim)';
+      container.innerHTML += `<div class="diagnosis-card ${pc}" style="opacity:0;transform:translateY(20px);transition:all 0.5s ${idx*0.12}s ease">
+        <div class="diagnosis-top"><div class="diag-icon">${d.icon}</div><div class="diag-meta">${lbl}<div class="diag-title">${d.title}</div></div>
+        <div class="diag-score" style="color:${sc}">${pct}<span class="score-denom">%</span></div></div>
+        <div class="score-bar-wrap"><div class="score-bar-track"><div class="score-bar-fill ${d.fillClass}" data-pct="${pct}"></div></div></div>
+        <div class="diagnosis-body"><div class="athlete-voice">${d.voice}</div><div class="diag-verdict">${d.verdict(sys.sev)}</div></div></div>`;
+    });
+    setTimeout(() => {
+      container.querySelectorAll('.diagnosis-card').forEach(el => { el.style.opacity='1'; el.style.transform='translateY(0)'; });
+      document.querySelectorAll('.score-bar-fill').forEach(el => { el.style.width=el.dataset.pct+'%'; });
+    }, 100);
+
+    buildPlan(systems, sev);
+    const headlines = { aerobic:"Your Engine's Running on Empty", lactic:"Your Legs Are Writing Cheques Your Body Can\'t Cash", alactic:"You\'ve Got the Motor — Now You Need the Gas" };
+    document.getElementById('result-headline').textContent = headlines[systems[0].key] || 'Your Stamina Profile';
+  }
+
+  function buildPlan(sorted, sev) {
+    const primary = sorted[0].key;
+    let phases;
+
+    if (primary === 'lactic') {
+      phases = [
+        {
+          label: `🔥 Priority Focus — 2x Per Week`,
+          title: `Lactic Power + Lactic Capacity`,
+          steps: [
+            {n:1, t:`<strong>Lactic Power:</strong> 20s max effort / 90s off x 6-8 rounds. This is your shift intensity — go as hard as you can on every rep.`},
+            {n:2, t:`<strong>Lactic Capacity:</strong> 30s on / 30s off x 6-8 rounds. Less rest forces your body to produce AND clear lactate at the same time. This is what stops the mid-shift wall.`},
+          ]
+        },
+        {
+          label: `🧠 Support — 1x Per Week`,
+          title: `Aerobic Capacity`,
+          steps: [
+            {n:3, t:`<strong>Aerobic Capacity:</strong> Zone 2 cardio, 20-35 min, conversational pace. Bike, rower, or skate ergometer. Keeps your recovery system functional while you hammer lactic work.`},
+          ]
+        },
+        {
+          label: `📅 Timeline`,
+          title: `What to Expect`,
+          steps: [
+            {n:4, t:`<strong>3-4 weeks in</strong> you'll feel the mid-shift wall start to move. Legs stay alive longer before locking up. After 6 weeks, reassess and reintroduce the full V sequence.`},
+          ]
+        }
+      ];
+
+    } else if (primary === 'aerobic') {
+      phases = [
+        {
+          label: `⚡ Phase 1 — Your Starting Point (4-6 Weeks)`,
+          title: `Aerobic Capacity + Aerobic Power paired with Alactic Power`,
+          steps: [
+            {n:1, t:`<strong>Aerobic Capacity:</strong> Zone 2 cardio, 20-35 min, 2-3x/week. Conversational pace. This rebuilds your engine from the ground up — do not skip it.`},
+            {n:2, t:`<strong>Aerobic Power:</strong> 2 min high steady pace / 1 min off x 6 rounds. Hard but controlled — not a sprint, not a jog. This raises your ceiling above zone 2.`},
+            {n:3, t:`<strong>Alactic Power (paired):</strong> 8-10 sec max effort / 2-3 min full recovery x 6 reps. Short and explosive. Full rest between every rep — if you are tired, it is not alactic training.`},
+          ]
+        },
+        {
+          label: `🔋 Phase 2 — Build On The Base (4-6 Weeks)`,
+          title: `Alactic Power + Alactic Capacity paired with Aerobic Power`,
+          steps: [
+            {n:4, t:`<strong>Alactic Power:</strong> 8-10 sec max effort / 2-3 min full recovery x 6-8 reps. Now you have the engine to actually express this.`},
+            {n:5, t:`<strong>Alactic Capacity:</strong> 15s on / 45s off x 6-10 rounds. More reps, slightly longer efforts — trains you to repeat explosive efforts across a full game.`},
+            {n:6, t:`<strong>Aerobic Power (paired):</strong> 2 min high steady / 1 min off x 6 rounds. Keeps your base sharp while you build the top end.`},
+          ]
+        },
+        {
+          label: `🏒 Phase 3 — Fill The Middle (4-6 Weeks)`,
+          title: `Lactic Power + Lactic Capacity paired with Alactic Capacity`,
+          steps: [
+            {n:7, t:`<strong>Lactic Power:</strong> 20s max effort / 90s off x 6-8 rounds. You have earned the base to handle this now — the wall will be lower than you expect.`},
+            {n:8, t:`<strong>Lactic Capacity:</strong> 30s on / 30s off x 6-8 rounds. Short rest, repeated efforts. This is the closest thing to real shift demands.`},
+            {n:9, t:`<strong>Alactic Capacity (paired):</strong> 15s on / 45s off x 6-10 rounds. Keeps your explosiveness sharp while lactic tolerance is being built.`},
+          ]
+        }
+      ];
+
+    } else {
+      phases = [
+        {
+          label: `✅ Phase 1 — Quick Check (2-3 Weeks)`,
+          title: `Aerobic Capacity + Aerobic Power paired with Alactic Power`,
+          steps: [
+            {n:1, t:`<strong>Aerobic Capacity:</strong> Zone 2, 20-30 min, 2x/week. Your base looks okay — confirm it is solid before moving on.`},
+            {n:2, t:`<strong>Aerobic Power:</strong> 2 min high steady / 1 min off x 6 rounds. 1x/week alongside zone 2.`},
+            {n:3, t:`<strong>Alactic Power (paired):</strong> 8-10 sec max effort / 2-3 min full recovery x 6 reps. Start building your ceiling immediately.`},
+          ]
+        },
+        {
+          label: `⚡ Phase 2 — Your Main Focus (4-6 Weeks)`,
+          title: `Alactic Power + Alactic Capacity paired with Aerobic Power`,
+          steps: [
+            {n:4, t:`<strong>Alactic Power:</strong> 8-10 sec max effort / 2-3 min full recovery x 6-8 reps. Every rep has to be truly maximal — this is where you get your extra gear back.`},
+            {n:5, t:`<strong>Alactic Capacity:</strong> 15s on / 45s off x 6-10 rounds. Trains you to repeat explosive efforts across all 3 periods, not just the first shift.`},
+            {n:6, t:`<strong>Aerobic Power (paired):</strong> 2 min high steady / 1 min off x 6 rounds. Keeps recovery sharp so alactic efforts stay high quality.`},
+          ]
+        },
+        {
+          label: `🏒 Phase 3 — Complete the V (4-6 Weeks)`,
+          title: `Lactic Power + Lactic Capacity paired with Alactic Capacity`,
+          steps: [
+            {n:7, t:`<strong>Lactic Power:</strong> 20s max effort / 90s off x 6-8 rounds. Your top end is trained — now fill in the middle.`},
+            {n:8, t:`<strong>Lactic Capacity:</strong> 30s on / 30s off x 6-8 rounds. Board battles, long shifts, late-game intensity — this is what makes it last.`},
+            {n:9, t:`<strong>Alactic Capacity (paired):</strong> 15s on / 45s off x 6-10 rounds. Keeps explosiveness intact while lactic capacity is being developed.`},
+          ]
+        }
+      ];
+    }
+
+    const isLactic = primary === 'lactic';
+    const phase = phases[0];
+    let html = `<div class="priority-plan" style="opacity:0;transform:translateY(16px);transition:all 0.5s 0.5s ease">
+      <div class="plan-title">${isLactic ? 'Your Priority Training Plan' : 'Your Training Plan — Working The V'}</div>`;
+    if (!isLactic) {
+      html += `<p style="font-size:13px;color:var(--text-dim);margin-bottom:20px;line-height:1.6;">Build the base (aerobic) and ceiling (alactic) first, then fill in the middle (lactic). Each phase compounds into the next. Do not skip ahead.</p>`;
+    }
+    html += `<div style="margin-bottom:24px;">
+      <div style="font-size:10px;font-weight:700;letter-spacing:0.18em;text-transform:uppercase;color:var(--accent);margin-bottom:4px;">${phase.label}</div>
+      <div style="font-family:'Bebas Neue',sans-serif;font-size:17px;letter-spacing:0.04em;color:var(--text);margin-bottom:12px;">${phase.title}</div>
+      <ul class="plan-steps">${phase.steps.map(s => `<li><div class="step-num">${s.n}</div><span>${s.t}</span></li>`).join('')}</ul>
+    </div>`;
+    html += `</div>`;
+
+    document.getElementById('priority-plan').innerHTML = html;
+    setTimeout(() => {
+      const p = document.querySelector('#priority-plan .priority-plan');
+      if (p) { p.style.opacity = '1'; p.style.transform = 'translateY(0)'; }
+    }, 100);
+  }
+
+  function retake() {
+    Object.keys(scores).forEach(k=>scores[k]=0);
+    answered=0;
+    document.querySelectorAll('.q-btn').forEach(b=>b.classList.remove('selected-yes','selected-sometimes','selected-no'));
+    document.getElementById('progress-fill').style.width='0%';
+    document.getElementById('progress-count').textContent='0 / 18 answered';
+    document.getElementById('submit-btn').classList.remove('active');
+    document.getElementById('submit-hint').textContent='Answer all 18 questions to unlock your results';
+    document.getElementById('habits-flag').classList.remove('show');
+    document.getElementById('diagnosis-cards').innerHTML='';
+    document.getElementById('priority-plan').innerHTML='';
+    document.getElementById('quiz').style.display='block';
+    document.getElementById('results').style.display='none';
+    window.scrollTo({top:0,behavior:'smooth'});
+    requestAnimationFrame(()=>setTimeout(revealSections,200));
+  }
+</script>
+</body>
+</html>
